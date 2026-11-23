@@ -4,13 +4,16 @@ from __future__ import annotations
 
 import logging
 import time
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
+import voluptuous as vol
 from homeassistant.components.select import SelectEntity
 from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ServiceValidationError
+from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers import entity_platform
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.restore_state import RestoreEntity
 
@@ -21,6 +24,7 @@ from .const import (
     MANUAL_DURATION_MINUTES,
     MANUAL_DURATION_UNTIL_SCHEDULE,
     MANUAL_PERMANENT,
+    MANUAL_UNTIL_NEXT_SCHEDULE,
     NAME_TO_LEVEL,
     SETTABLE_LEVELS,
     WIRE_LEVEL_OFFSET,
@@ -31,6 +35,11 @@ from .entity import VascoEntity
 _LOGGER = logging.getLogger(__name__)
 
 _SETTABLE_LEVEL_NAMES = [LEVEL_NAMES[level] for level in SETTABLE_LEVELS]
+
+SERVICE_SET_LEVEL = "set_level"
+ATTR_LEVEL = "level"
+ATTR_DURATION = "duration"
+ATTR_PERMANENT = "permanent"
 
 # nextValue (like homeModes[].devices[].value) uses the wire encoding
 # (2/3/4 = Low/Medium/High), not the cloud level enum.
@@ -47,6 +56,20 @@ async def async_setup_entry(
         entities.append(VascoLevelSelect(coordinator, device["serial"]))
         entities.append(VascoManualDurationSelect(coordinator, device["serial"]))
     async_add_entities(entities)
+
+    # For automations: set a level with its own duration, without touching
+    # the "manual level duration" select used by the dashboard.
+    entity_platform.async_get_current_platform().async_register_entity_service(
+        SERVICE_SET_LEVEL,
+        {
+            vol.Required(ATTR_LEVEL): vol.In(_SETTABLE_LEVEL_NAMES),
+            vol.Exclusive(ATTR_DURATION, "how_long"): vol.All(
+                cv.time_period, cv.positive_timedelta
+            ),
+            vol.Exclusive(ATTR_PERMANENT, "how_long"): cv.boolean,
+        },
+        "async_service_set_level",
+    )
 
 
 def _next_change(device: dict[str, Any]) -> str | None:
@@ -138,6 +161,22 @@ class VascoLevelSelect(VascoEntity, SelectEntity):
             )
         await self.coordinator.async_set_level(self._serial, level)
 
+    async def async_service_set_level(
+        self, level: str, duration: timedelta | None = None, permanent: bool = False
+    ) -> None:
+        """The set_level action: a level plus how long it holds.
+
+        Without duration or permanent the level holds until the next
+        schedule change, like the app's default.
+        """
+        if permanent:
+            manual_till = MANUAL_PERMANENT
+        elif duration:
+            manual_till = int((time.time() + duration.total_seconds()) * 1000)
+        else:
+            manual_till = MANUAL_UNTIL_NEXT_SCHEDULE
+        await self.coordinator.async_set_level(self._serial, NAME_TO_LEVEL[level], manual_till)
+
 
 class VascoManualDurationSelect(VascoEntity, SelectEntity, RestoreEntity):
     """How long a level selected in Home Assistant holds.
@@ -169,3 +208,10 @@ class VascoManualDurationSelect(VascoEntity, SelectEntity, RestoreEntity):
     async def async_select_option(self, option: str) -> None:
         self.coordinator.manual_duration[self._serial] = option
         self.async_write_ha_state()
+
+    async def async_service_set_level(self, **kwargs: Any) -> None:
+        """set_level targets the level select, not this one."""
+        raise ServiceValidationError(
+            translation_domain=DOMAIN,
+            translation_key="set_level_wrong_entity",
+        )

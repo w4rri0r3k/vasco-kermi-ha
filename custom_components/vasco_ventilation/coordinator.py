@@ -75,12 +75,18 @@ class VascoCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 return device
         raise VascoNoDevicesError(f"device {serial!r} not found in account configuration")
 
-    async def async_set_level(self, serial: str, level: int) -> None:
-        """Write a new level and poll briefly to reflect it quickly."""
+    async def async_set_level(
+        self, serial: str, level: int, manual_till: int | None = None
+    ) -> None:
+        """Write a new level and poll briefly to reflect it quickly.
+
+        manual_till defaults to the duration chosen in the "manual level
+        duration" select; the set_level action passes its own.
+        """
         device = self.device_by_serial(serial)
-        await self._async_write(
-            self.client.async_set_level(self.data, device, level, self._manual_till(serial))
-        )
+        if manual_till is None:
+            manual_till = self._manual_till(serial)
+        await self._async_write(self.client.async_set_level(self.data, device, level, manual_till))
         await self._async_confirm(serial, lambda d: d.get("level") == level, f"level {level}")
 
     def _manual_till(self, serial: str) -> int:

@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import time
 from typing import Any
 from unittest.mock import AsyncMock, patch
 
 import pytest
+import voluptuous as vol
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
@@ -85,6 +87,61 @@ async def test_select_level_writes_with_duration(
     )
     args = mock_client.async_set_level.call_args.args
     assert args[2:] == (3, -1)
+
+
+@pytest.mark.parametrize(
+    ("data", "expected_till"),
+    [
+        ({}, 0),
+        ({"permanent": True}, -1),
+        ({"duration": {"minutes": 15}}, "15min"),
+    ],
+)
+async def test_set_level_action(
+    hass: HomeAssistant,
+    config_entry: MockConfigEntry,
+    mock_client: AsyncMock,
+    data: dict[str, Any],
+    expected_till: Any,
+) -> None:
+    await _setup(hass, config_entry)
+    before = time.time()
+    await hass.services.async_call(
+        DOMAIN, "set_level", {"entity_id": LEVEL, "level": "medium", **data}, blocking=True
+    )
+    _, _, level, till = mock_client.async_set_level.call_args.args
+    assert level == 2
+    if expected_till == "15min":
+        assert int(before * 1000) + 15 * 60_000 <= till <= time.time() * 1000 + 15 * 60_000
+    else:
+        assert till == expected_till
+    # The dashboard's duration select is left alone.
+    assert hass.states.get("select.test_unit_manual_level_duration").state == "until_schedule"
+
+
+async def test_set_level_action_rejects_bad_input(
+    hass: HomeAssistant, config_entry: MockConfigEntry, mock_client: AsyncMock
+) -> None:
+    await _setup(hass, config_entry)
+    with pytest.raises(vol.Invalid):
+        await hass.services.async_call(
+            DOMAIN, "set_level", {"entity_id": LEVEL, "level": "boost"}, blocking=True
+        )
+    with pytest.raises(vol.Invalid):
+        await hass.services.async_call(
+            DOMAIN,
+            "set_level",
+            {"entity_id": LEVEL, "level": "low", "permanent": True, "duration": "00:10:00"},
+            blocking=True,
+        )
+    with pytest.raises(ServiceValidationError):
+        await hass.services.async_call(
+            DOMAIN,
+            "set_level",
+            {"entity_id": "select.test_unit_manual_level_duration", "level": "low"},
+            blocking=True,
+        )
+    mock_client.async_set_level.assert_not_called()
 
 
 async def test_boost_not_selectable(

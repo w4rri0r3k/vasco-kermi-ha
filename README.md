@@ -19,13 +19,26 @@ endorsed, or supported by Vasco.
   entity — no on/off toggle, since the unit doesn't support one.
 - **Manual level duration** — like the app's prompt: until the next schedule
   change (default), permanently, or for 5/10/15/30 minutes or 1/2/4/8/24 hours.
+- **`vasco_ventilation.set_level` action** for automations: a level plus its
+  own duration (or `permanent: true`), without touching the duration select
+  used on dashboards. For example, airing for 15 minutes:
+
+  ```yaml
+  action: vasco_ventilation.set_level
+  target:
+    entity_id: select.vasco
+  data:
+    level: high
+    duration: "00:15:00"
+  ```
 - **Timed functions** — Boost and Fireplace mode buttons, the same as the
   official app's boost and fireplace functions. Boost runs for the time stored
   in the unit (30 min by default); Fireplace mode for the time last picked
   in the app.
 - **Sensors** — indoor/outdoor/supply/exhaust temperature, airflow as shown
-  in the official app (mean of supply and exhaust), inlet/exhaust airflow (m³/h), inlet/exhaust fan speed (%), bypass position (%), preheater
-  demand (%), boost end time, filter replace interval.
+  in the official app (mean of supply and exhaust), inlet/exhaust airflow (m³/h), heat recovery efficiency (%), inlet/exhaust fan
+  speed (%), bypass position (%), preheater demand (%), boost end time, filter
+  replace interval.
 - **Binary sensors** — filter dirty, fault, defrost active, fireplace mode
   active.
 - **Diagnostics** — download a redacted diagnostics dump from the entry's
@@ -101,6 +114,7 @@ very welcome.
 | `sensor` | Indoor / outdoor / supply / exhaust temperature | °C |
 | `sensor` | Airflow | m³/h, mean of supply and exhaust, as shown in the official app |
 | `sensor` | Inlet / exhaust airflow | m³/h |
+| `sensor` | Heat recovery efficiency | %, (supply − outdoor) / (indoor − outdoor); unknown while bypass, defrost or preheater run, or with < 5 K between indoors and outdoors |
 | `sensor` | Inlet / exhaust fan speed | % (diagnostic) |
 | `sensor` | Bypass position | % (diagnostic) |
 | `sensor` | Preheater demand | % (diagnostic), unknown when no preheater is fitted |

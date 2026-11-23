@@ -78,6 +78,9 @@
       },
       "filter_replace_interval": {
         "name": "Okres wymiany filtra"
+      },
+      "heat_recovery_efficiency": {
+        "name": "Sprawność odzysku ciepła"
       }
     },
     "select": {
@@ -178,6 +181,40 @@
     },
     "level_not_settable": {
       "message": "Nie można tu wybrać „{option}” (dostępne: {supported}). Przewietrzanie uruchamia się osobnym przyciskiem."
+    },
+    "set_level_wrong_entity": {
+      "message": "Akcja ustawienia biegu dotyczy encji biegu wentylacji, nie wyboru czasu trwania biegu ręcznego."
+    }
+  },
+  "services": {
+    "set_level": {
+      "name": "Ustaw bieg",
+      "description": "Ustaw bieg wentylacji na określony czas, jak w aplikacji. Bez czasu trwania i bez opcji na stałe bieg działa do następnej zmiany harmonogramu.",
+      "fields": {
+        "level": {
+          "name": "Bieg",
+          "description": "Bieg wentylacji do ustawienia."
+        },
+        "duration": {
+          "name": "Czas trwania",
+          "description": "Jak długo bieg ma działać, zanim harmonogram przejmie kontrolę."
+        },
+        "permanent": {
+          "name": "Na stałe",
+          "description": "Utrzymaj bieg do kolejnej zmiany (z pominięciem harmonogramu)."
+        }
+      }
+    }
+  },
+  "selector": {
+    "level": {
+      "options": {
+        "low": "Niski",
+        "medium": "Średni",
+        "high": "Wysoki",
+        "holidays": "Wakacje",
+        "guests": "Goście"
+      }
     }
   }
 }

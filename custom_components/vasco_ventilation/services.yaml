@@ -1,0 +1,26 @@
+set_level:
+  target:
+    entity:
+      integration: vasco_ventilation
+      domain: select
+  fields:
+    level:
+      required: true
+      example: high
+      selector:
+        select:
+          translation_key: level
+          options:
+            - low
+            - medium
+            - high
+            - holidays
+            - guests
+    duration:
+      example: "00:30:00"
+      selector:
+        duration:
+    permanent:
+      default: false
+      selector:
+        boolean:

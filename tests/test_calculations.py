@@ -10,6 +10,7 @@ from custom_components.vasco_ventilation.sensor import (
     _EXHAUST_SPEED_KEYS,
     _INLET_SPEED_KEYS,
     _boost_end,
+    _efficiency,
     _flow,
     _mean_flow,
     _preheater,
@@ -91,3 +92,23 @@ def test_boost_end_only_while_boosting() -> None:
     )
     assert _boost_end({"level": 2, "manualSettingActiveTill": till}) is None
     assert _boost_end({"level": 13, "manualSettingActiveTill": -1}) is None
+
+
+_TEMPS = {"indoorTemperature": 20.8, "outdoorTemperature": 3.2, "supplyTemperature": 20.1}
+
+
+@pytest.mark.parametrize(
+    ("extra", "expected"),
+    [
+        ({}, 96),  # X425 reading, 2026-11-23
+        ({"supplyTemperature": 2.0}, 0),  # clamped
+        ({"bypassPosition": 100}, None),
+        ({"defrost": 1}, None),
+        ({"preHeaterDemand": 40}, None),
+        ({"preHeaterDemand": 0xEF}, 96),  # no preheater fitted
+        ({"outdoorTemperature": 17.0}, None),  # < 5 K difference
+        ({"supplyTemperature": None}, None),
+    ],
+)
+def test_efficiency(extra: dict, expected: int | None) -> None:
+    assert _efficiency({**_TEMPS, **extra}) == expected

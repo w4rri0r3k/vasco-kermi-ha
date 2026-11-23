@@ -91,6 +91,33 @@ def _mean_flow(device: dict[str, Any]) -> float | None:
 _NOT_PRESENT = 0xEF
 
 
+# Below this indoor/outdoor difference the efficiency is mostly sensor noise.
+_MIN_EFFICIENCY_DELTA = 5.0
+
+
+def _efficiency(device: dict[str, Any]) -> int | None:
+    """Supply-side temperature efficiency of the heat exchanger, in %.
+
+    (supply - outdoor) / (indoor - outdoor), the usual EN 308 figure: how
+    much of the indoor/outdoor temperature difference the exchanger gives
+    back to the fresh air. Unknown while it would be meaningless: bypass
+    open, defrost or preheater running (they change the temperatures on
+    purpose), or less than 5 K between indoors and outdoors.
+    """
+    indoor = device.get("indoorTemperature")
+    outdoor = device.get("outdoorTemperature")
+    supply = device.get("supplyTemperature")
+    if not all(isinstance(t, int | float) for t in (indoor, outdoor, supply)):
+        return None
+    preheater = _preheater(device)
+    if device.get("bypassPosition") or device.get("defrost") or preheater:
+        return None
+    delta = indoor - outdoor
+    if delta < _MIN_EFFICIENCY_DELTA:
+        return None
+    return round(min(max((supply - outdoor) / delta * 100, 0), 100))
+
+
 def _preheater(device: dict[str, Any]) -> Any:
     """Preheater demand in %, or None when no preheater is fitted."""
     value = device.get("preHeaterDemand")
@@ -157,6 +184,14 @@ SENSOR_DESCRIPTIONS: tuple[VascoSensorDescription, ...] = (
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:fan",
         value_fn=_mean_flow,
+    ),
+    VascoSensorDescription(
+        key="heat_recovery_efficiency",
+        translation_key="heat_recovery_efficiency",
+        native_unit_of_measurement=PERCENTAGE,
+        state_class=SensorStateClass.MEASUREMENT,
+        icon="mdi:heat-wave",
+        value_fn=_efficiency,
     ),
     VascoSensorDescription(
         key="inlet_flow",

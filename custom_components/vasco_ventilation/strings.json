@@ -78,6 +78,9 @@
       },
       "filter_replace_interval": {
         "name": "Filter replace interval"
+      },
+      "heat_recovery_efficiency": {
+        "name": "Heat recovery efficiency"
       }
     },
     "select": {
@@ -178,6 +181,40 @@
     },
     "level_not_settable": {
       "message": "Option \"{option}\" can't be selected here (supported: {supported}). Use the Boost button to start a timed boost."
+    },
+    "set_level_wrong_entity": {
+      "message": "The set level action targets the ventilation level select, not the manual level duration select."
+    }
+  },
+  "services": {
+    "set_level": {
+      "name": "Set level",
+      "description": "Set the ventilation level for a while, like the app's duration prompt. Without a duration or permanent, the level holds until the next schedule change.",
+      "fields": {
+        "level": {
+          "name": "Level",
+          "description": "Ventilation level to set."
+        },
+        "duration": {
+          "name": "Duration",
+          "description": "How long the level holds before the schedule takes over again."
+        },
+        "permanent": {
+          "name": "Permanently",
+          "description": "Hold the level until it is changed again (ignores the schedule)."
+        }
+      }
+    }
+  },
+  "selector": {
+    "level": {
+      "options": {
+        "low": "Low",
+        "medium": "Medium",
+        "high": "High",
+        "holidays": "Holidays",
+        "guests": "Guests"
+      }
     }
   }
 }
